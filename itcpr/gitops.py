@@ -191,13 +191,17 @@ class GitOps:
             logger.error(f"Commit failed: {e}")
             raise
     
-    def push(self) -> bool:
+    def push(self, set_upstream: bool = False) -> bool:
         """Push to remote."""
         if not self.is_repo():
             raise RuntimeError("Not a git repository")
         
         try:
-            self._run_git("push", "origin", "HEAD", check=True)
+            branch = self.get_current_branch() or "main"
+            if set_upstream:
+                self._run_git("push", "-u", "origin", branch, check=True)
+            else:
+                self._run_git("push", "origin", "HEAD", check=True)
             return True
         except Exception as e:
             logger.error(f"Push failed: {e}")
@@ -224,4 +228,101 @@ class GitOps:
             return result.stdout.strip()
         except:
             return None
+    
+    def init(self) -> bool:
+        """Initialize a new git repository."""
+        if self.is_repo():
+            raise RuntimeError("Already a git repository")
+        
+        try:
+            # Ensure directory exists
+            self.repo_path.mkdir(parents=True, exist_ok=True)
+            # Initialize git repo
+            self._run_git("init", check=True, cwd=self.repo_path)
+            return True
+        except Exception as e:
+            logger.error(f"Git init failed: {e}")
+            raise
+    
+    def add_remote(self, name: str, url: str, token: Optional[str] = None) -> bool:
+        """Add remote repository."""
+        if not self.is_repo():
+            raise RuntimeError("Not a git repository")
+        
+        # Prepare URL with token if provided
+        if token:
+            if url.startswith("https://"):
+                url_parts = url.split("://", 1)
+                url = f"{url_parts[0]}://x-access-token:{token}@{url_parts[1]}"
+            elif url.startswith("git@"):
+                ssh_parts = url.replace("git@", "").replace(":", "/", 1)
+                url = f"https://x-access-token:{token}@{ssh_parts}"
+        
+        try:
+            # Check if remote already exists
+            try:
+                existing_url = self._run_git("remote", "get-url", name, check=True)
+                if existing_url.stdout.strip() != url:
+                    # Update existing remote
+                    self._run_git("remote", "set-url", name, url, check=True)
+            except:
+                # Remote doesn't exist, add it
+                self._run_git("remote", "add", name, url, check=True)
+            return True
+        except Exception as e:
+            logger.error(f"Add remote failed: {e}")
+            raise
+    
+    def create_initial_commit(self, message: str = "Initial commit") -> bool:
+        """Create initial commit if there are files to commit."""
+        if not self.is_repo():
+            raise RuntimeError("Not a git repository")
+        
+        try:
+            # First check if there are any commits
+            has_commits = False
+            try:
+                self._run_git("rev-parse", "--verify", "HEAD", check=True)
+                has_commits = True
+            except:
+                # No commits yet
+                has_commits = False
+            
+            # If already has commits, check status normally
+            if has_commits:
+                status = self.get_status()
+                if not status.get("has_changes"):
+                    # Already has commits and no changes
+                    return False
+                # Has commits and changes, add and commit
+                self._run_git("add", "-A", check=True)
+                self._run_git("commit", "-m", message, check=True)
+                return True
+            
+            # No commits yet - check if there are any files to commit
+            # Use git status --porcelain to check for changes without needing HEAD
+            try:
+                status_result = self._run_git("status", "--porcelain", check=True)
+                has_changes = bool(status_result.stdout.strip())
+            except:
+                has_changes = False
+            
+            # If no changes, create a README
+            if not has_changes:
+                readme_path = self.repo_path / "README.md"
+                if not readme_path.exists():
+                    readme_path.write_text(f"# {self.repo_path.name}\n\n")
+                    has_changes = True
+            
+            if has_changes:
+                # Add all files
+                self._run_git("add", "-A", check=True)
+                # Commit
+                self._run_git("commit", "-m", message, check=True)
+                return True
+            
+            return False
+        except Exception as e:
+            logger.error(f"Create initial commit failed: {e}")
+            raise
 

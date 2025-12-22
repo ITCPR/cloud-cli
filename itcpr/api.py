@@ -112,4 +112,62 @@ class APIClient:
             raise
         except Exception:
             return False
+    
+    def create_repo(self, name: str, description: str = "", private: bool = False) -> Dict[str, Any]:
+        """Create a new repository in the organization."""
+        use_mock = config.mock_mode or (MOCK_AVAILABLE and _mock_api is not None)
+        
+        payload = {
+            "name": name,
+            "description": description,
+            "visibility": "private" if private else "public"
+        }
+        
+        try:
+            response = self._request("POST", "/cloud/app/org/repos", json=payload)
+            response.raise_for_status()
+            return response.json()
+        except requests.HTTPError as e:
+            if e.response.status_code == 422:
+                # GitHub API returns 422 when repo already exists
+                error_data = e.response.json()
+                error_message = error_data.get("message", "Repository already exists")
+                if "already exists" in error_message.lower() or "name already exists" in error_message.lower():
+                    raise ValueError(f"Repository '{name}' already exists in the organization. Please choose a different name.")
+                raise ValueError(error_message)
+            if use_mock and e.response.status_code == 404:
+                logger.info("Backend unavailable, using mock API")
+                if MOCK_AVAILABLE:
+                    return _mock_api.create_repo(name, description, private)
+            raise
+        except (requests.RequestException, Exception) as e:
+            if use_mock:
+                logger.info("Backend unavailable, using mock API")
+                if MOCK_AVAILABLE:
+                    return _mock_api.create_repo(name, description, private)
+            raise
+    
+    def add_collaborator(self, owner: str, repo: str, username: str, permission: str = "admin") -> bool:
+        """Add a collaborator to a repository."""
+        use_mock = config.mock_mode or (MOCK_AVAILABLE and _mock_api is not None)
+        
+        payload = {"permission": permission}
+        
+        try:
+            response = self._request("PUT", f"/cloud/app/repos/{owner}/{repo}/collaborators/{username}", json=payload)
+            response.raise_for_status()
+            return True
+        except requests.HTTPError as e:
+            if use_mock and e.response.status_code == 404:
+                logger.info("Backend unavailable, using mock API")
+                # Mock would silently succeed
+                return True
+            logger.warning(f"Failed to add collaborator: {e}")
+            raise
+        except (requests.RequestException, Exception) as e:
+            if use_mock:
+                logger.info("Backend unavailable, using mock API")
+                return True
+            logger.warning(f"Failed to add collaborator: {e}")
+            raise
 

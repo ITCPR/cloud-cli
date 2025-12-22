@@ -9,7 +9,7 @@ long_description = readme_file.read_text() if readme_file.exists() else ""
 
 setup(
     name="itcpr",
-    version="2.1.3",
+    version="2.1.4",
     description="CLI tool for syncing GitHub repositories from ITCPR Cloud",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -23,11 +23,11 @@ setup(
         "requests>=2.28.0",
         "keyring>=23.0.0",
         "tomli-w>=1.0.0",
+        "PyYAML>=6.0",
     ],
     # Optional dependencies
     extras_require={
         "dev": ["pytest", "black", "flake8"],
-        "yaml": ["PyYAML>=6.0"],  # For itcpr.yml support
     },
     entry_points={
         "console_scripts": [

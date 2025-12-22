@@ -263,6 +263,145 @@ def sync(ctx, watch, interval):
         print_error(f"Sync failed: {e}")
         raise click.Abort()
 
+@cli.command()
+@click.option("--name", "-n", help="Repository name (defaults to current directory name)")
+@click.option("--description", "-d", default="", help="Repository description")
+@click.option("--public", is_flag=True, help="Create public repository (default: private)")
+@click.option("--push", is_flag=True, help="Push initial commit to remote")
+@click.pass_context
+def init(ctx, name, description, public, push):
+    """Initialize a new repository in the current folder."""
+    from .auth import Auth
+    from .api import APIClient
+    from .storage import Storage
+    from .gitops import GitOps
+    auth = Auth()
+    if not auth.is_authenticated():
+        click.echo("Not logged in. Run 'itcpr login' first.")
+        return
+    
+    api = APIClient(auth)
+    storage = Storage()
+    
+    try:
+        # Get current directory
+        current_dir = Path.cwd()
+        
+        # Determine repository name
+        if name:
+            repo_name = name
+        else:
+            repo_name = current_dir.name
+            if not repo_name or repo_name == ".":
+                print_error("Cannot determine repository name. Please specify --name")
+                raise click.Abort()
+        
+        # Check if already a git repo
+        git = GitOps(current_dir)
+        is_git_repo = git.is_repo()
+        
+        if is_git_repo:
+            click.echo(f"Directory is already a git repository.")
+            if not click.confirm("Continue with creating remote repository?"):
+                return
+        
+        # Get user's GitHub username
+        click.echo("Getting user information...")
+        try:
+            me = api.get_me()
+            user_data = me.get("user", {})
+            github_username = user_data.get("github_username")
+            if not github_username:
+                print_error("GitHub account not connected. Please connect your GitHub account first.")
+                raise click.Abort()
+        except Exception as e:
+            logger.warning(f"Could not get user info: {e}")
+            github_username = None
+        
+        # Create repository on GitHub (private by default, unless --public is specified)
+        private = not public
+        click.echo(f"Creating repository '{repo_name}' in organization ({'private' if private else 'public'})...")
+        try:
+            repo_data = api.create_repo(repo_name, description, private)
+            print_success(f"Repository '{repo_name}' created successfully")
+        except ValueError as e:
+            # Handle "already exists" error
+            error_msg = str(e)
+            if "already exists" in error_msg.lower():
+                print_error(f"Repository '{repo_name}' already exists in the organization. Please choose a different name.")
+                raise click.Abort()
+            raise
+        
+        # Get repository owner and URLs
+        full_name = repo_data.get("full_name", "")
+        owner = full_name.split("/")[0] if "/" in full_name else repo_data.get("owner", {}).get("login", "")
+        clone_url = repo_data.get("clone_url")
+        ssh_url = repo_data.get("ssh_url")
+        remote_url = clone_url or ssh_url
+        
+        if not remote_url:
+            print_error("Repository created but URL not available")
+            raise click.Abort()
+        
+        # Add device owner as admin collaborator
+        if github_username and owner:
+            click.echo(f"Adding you as admin collaborator...")
+            try:
+                api.add_collaborator(owner, repo_name, github_username, permission="admin")
+                print_success(f"Added {github_username} as admin collaborator")
+            except Exception as e:
+                logger.warning(f"Failed to add collaborator: {e}")
+                click.echo(f"Warning: Could not add you as collaborator. You may need to add yourself manually.")
+        
+        # Initialize git if not already initialized
+        if not is_git_repo:
+            click.echo("Initializing git repository...")
+            git.init()
+            print_success("Git repository initialized")
+        
+        # Get GitHub token for remote operations
+        click.echo("Setting up remote...")
+        token = api.get_github_token(repo_name)
+        
+        # Add remote
+        git.add_remote("origin", remote_url, token)
+        print_success("Remote 'origin' configured")
+        
+        # Create initial commit if there are changes or no commits
+        try:
+            git.create_initial_commit("Initial commit")
+            click.echo("Initial commit created")
+        except Exception as e:
+            logger.debug(f"Could not create initial commit: {e}")
+            # This is okay, might already have commits or no files
+        
+        # Push if requested
+        if push:
+            click.echo("Pushing to remote...")
+            try:
+                branch = git.get_current_branch() or "main"
+                git.push(set_upstream=True)
+                print_success(f"Pushed to remote (branch: {branch})")
+            except Exception as e:
+                logger.warning(f"Push failed: {e}")
+                print_error(f"Failed to push: {e}")
+                click.echo("You can push manually later with: git push -u origin <branch>")
+        
+        # Register in storage
+        full_name = repo_data.get("full_name", repo_name)
+        storage.add_repo(repo_name, full_name, str(current_dir), remote_url)
+        
+        print_success(f"Repository '{repo_name}' initialized successfully!")
+        if not push:
+            click.echo(f"\nTo push your code, run: git push -u origin {git.get_current_branch() or 'main'}")
+        
+    except click.Abort:
+        raise
+    except Exception as e:
+        logger.exception("Init error")
+        print_error(f"Failed to initialize repository: {e}")
+        raise click.Abort()
+
 def main():
     """Entry point for CLI."""
     cli()
