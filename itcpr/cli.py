@@ -79,7 +79,9 @@ def status(ctx):
         click.echo(f"\n=== Assigned Repositories ({len(repos)}) ===")
         if repos:
             for repo in repos:
-                click.echo(f"  - {repo.get('full_name', repo.get('name', 'N/A'))}")
+                full_name = repo.get('full_name', '')
+                repo_name = full_name.split('/', 1)[-1] if full_name else repo.get('name', 'N/A')
+                click.echo(f"  - {repo_name}")
         else:
             click.echo("  No repositories assigned")
         
@@ -133,7 +135,8 @@ def repos(ctx):
         click.echo(f"\nAssigned Repositories ({len(assigned_repos)}):\n")
         
         for repo in assigned_repos:
-            repo_name = repo.get("name")
+            full_name = repo.get('full_name', '')
+            repo_name = full_name.split('/', 1)[-1] if full_name else repo.get('name', 'N/A')
             full_name = repo.get("full_name", repo_name)
             local_repo = local_repos.get(repo_name)
             
@@ -178,7 +181,9 @@ def clone(ctx, repo, path):
         
         # Find repo by name or full_name
         for r in assigned_repos:
-            if r.get("name") == repo or r.get("full_name") == repo:
+            full_name = r.get('full_name', '')
+            repo_name = full_name.split('/', 1)[-1] if full_name else r.get('name', 'N/A')
+            if repo_name == repo or full_name == repo:
                 repo_info = r
                 break
         
@@ -186,8 +191,8 @@ def clone(ctx, repo, path):
             click.echo(f"Repository '{repo}' is not assigned to this device.")
             return
         
-        repo_name = repo_info.get("name")
         full_name = repo_info.get("full_name")
+        repo_name = full_name.split('/', 1)[-1] if full_name else repo_info.get('name', 'N/A')
         remote_url = repo_info.get("clone_url") or repo_info.get("ssh_url")
         
         if not remote_url:
