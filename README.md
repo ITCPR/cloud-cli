@@ -26,7 +26,7 @@ Or use `pip3` or `python3 -m pip` if needed.
 To install from source for development or contribution:
 
 ```bash
-git clone https://github.com/ITCPR/cloud-cli
+git clone https://github.com/ITCPR/cloud-cli.git
 cd cloud-cli
 pip install -e .
 ```
