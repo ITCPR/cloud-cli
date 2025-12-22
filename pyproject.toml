@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "itcpr"
+version = "2.1.1"
+description = "CLI tool for syncing GitHub repositories from ITCPR Cloud"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+keywords = ["itcpr", "github", "git", "sync", "cli", "repository"]
+authors = [
+    {name = "ITCPR", email = "info@itcpr.org"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "click>=8.0.0",
+    "requests>=2.28.0",
+    "keyring>=23.0.0",
+    "tomli-w>=1.0.0",
+]
+
+[project.scripts]
+itcpr = "itcpr.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest", "black", "flake8"]
+yaml = ["PyYAML>=6.0"]  # For itcpr.yml support
+
+[tool.setuptools]
+packages = ["itcpr"]
+

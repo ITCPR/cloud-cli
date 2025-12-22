@@ -1,0 +1,22 @@
+# itcpr.yml - Repository sync configuration
+# Place this file in the root of your repository to configure sync behavior
+
+sync:
+  # Enable or disable sync for this repository
+  enabled: true
+  
+  # Automatically commit local changes before syncing
+  auto_commit: true
+  
+  # Automatically push local commits after syncing
+  auto_push: true
+  
+  # Optional: Sync a specific branch (if not set, uses current branch)
+  # branch: main
+  
+  # Optional: File patterns to ignore during sync
+  # ignore:
+  #   - "*.log"
+  #   - "temp/"
+  #   - "*.tmp"
+
