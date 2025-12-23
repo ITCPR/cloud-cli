@@ -8,6 +8,7 @@ A command-line tool for syncing GitHub repositories from ITCPR Cloud to your loc
 - 🆕 Create new repositories in the organization
 - 📦 Automatic repository synchronization
 - 🔄 Manual or continuous sync modes
+- 🚀 Background service daemon (auto-start on boot)
 - 💾 Local SQLite database for metadata tracking
 - 🔒 Secure token storage using OS keyring
 - 🛡️ Safe git operations with conflict detection
@@ -128,7 +129,7 @@ itcpr clone paperport-itcpr --path ~/projects/paperport
 
 ### 5. Initialize a New Repository
 
-Create a new repository in the current folder:
+Create a new repository in the current folder using the project template:
 
 ```bash
 itcpr init
@@ -136,10 +137,12 @@ itcpr init
 
 This will:
 - Create a new repository in the organization (using current directory name)
+- Use `ITCPR/project-template` as the template
+- Fetch and copy template files to current directory
 - Add you as an admin collaborator
 - Initialize git repository
 - Set up remote origin
-- Create an initial commit
+- Create an initial commit with template files
 
 With options:
 
@@ -157,7 +160,9 @@ itcpr init --public
 itcpr init --push
 ```
 
-**Note:** If the repository name already exists in the organization, you'll be prompted to choose a different name.
+**Note:** 
+- If the repository name already exists in the organization, you'll be prompted to choose a different name.
+- Template files from `ITCPR/project-template` are automatically copied to your directory. Existing files are preserved (not overwritten).
 
 ### 6. Sync Repositories
 
@@ -179,17 +184,53 @@ With custom interval:
 itcpr sync --watch --interval 120  # Sync every 2 minutes
 ```
 
-**Note:** Watch mode runs in the foreground and will block your terminal. Press `Ctrl+C` to stop. To run it in the background, you can use:
+**Note:** Watch mode runs in the foreground and will block your terminal. Press `Ctrl+C` to stop. 
+
+For background operation, use the **service** commands (see below).
+
+### 7. Run as Background Service
+
+Run sync as a background service that starts automatically:
 
 ```bash
-# Run in background (Linux/macOS)
-itcpr sync --watch &
+# Start service in background
+itcpr service start
 
-# Or use nohup to keep it running after closing terminal
-nohup itcpr sync --watch > itcpr.log 2>&1 &
+# Start with custom interval
+itcpr service start --interval 120  # Sync every 2 minutes
+
+# Check service status
+itcpr service status
+
+# View service logs
+itcpr service logs
+
+# Stop service
+itcpr service stop
 ```
 
-### 7. Logout
+**Install as System Service (Auto-start on boot):**
+
+```bash
+# Install service (Linux - requires sudo)
+sudo itcpr service install
+
+# Install with custom interval
+sudo itcpr service install --interval 120
+
+# On macOS (no sudo needed)
+itcpr service install
+
+# On Windows (may require admin)
+itcpr service install
+```
+
+After installation:
+- **Linux (systemd):** `sudo systemctl enable itcpr && sudo systemctl start itcpr`
+- **macOS (launchd):** `launchctl load ~/Library/LaunchAgents/org.itcpr.sync.plist`
+- **Windows (Task Scheduler):** The service will start automatically on user logon. To start immediately: `schtasks /Run /TN "ITCPR Sync Service"`
+
+### 8. Logout
 
 Clear stored credentials:
 
@@ -230,7 +271,7 @@ Options:
 
 ### `itcpr init`
 
-Creates a new repository in the organization and initializes it in the current folder. The repository name defaults to the current directory name, or you can specify a custom name.
+Creates a new repository in the organization and initializes it in the current folder using the `ITCPR/project-template` template. The repository name defaults to the current directory name, or you can specify a custom name.
 
 **Options:**
 - `--name, -n`: Repository name (defaults to current directory name)
@@ -239,12 +280,20 @@ Creates a new repository in the organization and initializes it in the current f
 - `--push`: Push initial commit to remote immediately
 
 **What it does:**
-1. Creates a new repository in the organization via GitHub API
-2. Adds you (the device owner) as an admin collaborator
-3. Initializes git repository if not already initialized
-4. Sets up remote origin with authentication
-5. Creates an initial commit (creates README.md if no files exist)
-6. Optionally pushes to remote if `--push` is used
+1. Creates a new repository in the organization from `ITCPR/project-template` template via GitHub API
+2. Fetches the template repository (`ITCPR/project-template`)
+3. Copies template files to current directory (preserves existing files)
+4. Adds you (the device owner) as an admin collaborator
+5. Initializes git repository if not already initialized
+6. Sets up remote origin with authentication
+7. Creates an initial commit with template files
+8. Optionally pushes to remote if `--push` is used
+
+**Template Behavior:**
+- The repository is created from the `ITCPR/project-template` template repository
+- Template files are automatically copied to your current directory
+- Existing files in the directory are preserved (not overwritten)
+- The `.git` directory from the template is excluded
 
 **Example:**
 
@@ -293,6 +342,61 @@ sync:
 - If both are enabled (default), the tool will commit uncommitted changes and then push them automatically
 - You can set `auto_commit: true, auto_push: false` to commit locally without pushing
 - If `itcpr.yml` doesn't exist, the tool uses default values (all enabled). The configuration file is optional.
+
+### `itcpr service`
+
+Manage the sync service as a background daemon.
+
+**Commands:**
+- `start`: Start the service in background
+- `stop`: Stop the running service
+- `status`: Show service status and information
+- `logs`: View service logs
+- `install`: Install as system service (auto-start on boot)
+- `uninstall`: Remove system service
+
+**Options:**
+- `--interval, -i`: Sync interval in seconds (default: 60)
+- `--foreground, -f`: Run in foreground (don't daemonize)
+- `--user`: User to run service as (for system service installation)
+
+**Examples:**
+
+```bash
+# Start service in background
+itcpr service start
+
+# Start with custom interval
+itcpr service start --interval 300  # 5 minutes
+
+# Check if service is running
+itcpr service status
+
+# View recent logs
+itcpr service logs
+
+# Install to start on boot (Linux)
+sudo itcpr service install
+
+# Install to start on boot (macOS)
+itcpr service install
+
+# Install to start on boot (Windows - may require admin)
+itcpr service install
+
+# Uninstall system service
+itcpr service uninstall
+```
+
+**Service Features:**
+- Runs as background daemon (cross-platform)
+- Automatic restart on failure (when installed as system service)
+- Logs to `~/.itcpr/itcpr-service.log` (or `%USERPROFILE%\.itcpr\itcpr-service.log` on Windows)
+- PID file management
+- System service support:
+  - **Linux**: systemd service
+  - **macOS**: launchd agent
+  - **Windows**: Task Scheduler task
 
 ## How It Works
 

@@ -113,7 +113,7 @@ class APIClient:
         except Exception:
             return False
     
-    def create_repo(self, name: str, description: str = "", private: bool = False) -> Dict[str, Any]:
+    def create_repo(self, name: str, description: str = "", private: bool = False, template: Optional[str] = "project-template") -> Dict[str, Any]:
         """Create a new repository in the organization."""
         use_mock = config.mock_mode or (MOCK_AVAILABLE and _mock_api is not None)
         
@@ -122,6 +122,9 @@ class APIClient:
             "description": description,
             "visibility": "private" if private else "public"
         }
+        
+        if template:
+            payload["template"] = template
         
         try:
             response = self._request("POST", "/cloud/app/org/repos", json=payload)
