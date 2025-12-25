@@ -269,6 +269,23 @@ Clones a repository from GitHub using short-lived installation tokens.
 Options:
 - `--path, -p`: Custom local path for the repository
 
+### `itcpr remove <repo>`
+
+Removes a repository from local tracking (unregisters it). This does NOT delete:
+- The repository from GitHub
+- The local files on your machine
+
+It only removes the repository from the local tracking database, so it will no longer appear in `itcpr status` or `itcpr repos` and won't be synced.
+
+**Example:**
+
+```bash
+# Remove a repository from local tracking
+itcpr remove my-repo
+```
+
+**Note:** The local files remain on your system. You can delete them manually if needed.
+
 ### `itcpr init`
 
 Creates a new repository in the organization and initializes it in the current folder using the `ITCPR/project-template` template. The repository name defaults to the current directory name, or you can specify a custom name.

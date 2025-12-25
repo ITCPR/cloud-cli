@@ -257,6 +257,47 @@ def clone(ctx, repo, path):
         raise click.Abort()
 
 @cli.command()
+@click.argument("repo")
+@click.pass_context
+def remove(ctx, repo):
+    """Remove a repository from local tracking (unregister)."""
+    from .auth import Auth
+    from .storage import Storage
+    auth = Auth()
+    if not auth.is_authenticated():
+        click.echo("Not logged in. Run 'itcpr login' first.")
+        return
+    
+    storage = Storage()
+    
+    try:
+        # Check if repo is tracked locally
+        existing = storage.get_repo(repo)
+        if not existing:
+            click.echo(f"Repository '{repo}' is not tracked locally.")
+            return
+        
+        # Show what will be removed
+        click.echo(f"Repository: {existing['name']}")
+        click.echo(f"Local path: {existing['local_path']}")
+        click.echo("\nThis will unregister the repository from local tracking.")
+        click.echo("The local files and the GitHub repository will NOT be deleted.")
+        
+        if not click.confirm("Do you want to continue?"):
+            return
+        
+        # Remove from tracking
+        storage.remove_repo(repo)
+        print_success(f"Repository '{repo}' removed from local tracking")
+        click.echo(f"\nNote: Local files at {existing['local_path']} are still present.")
+        click.echo("You can delete them manually if needed.")
+        
+    except Exception as e:
+        logger.exception("Remove error")
+        print_error(f"Failed to remove repository: {e}")
+        raise click.Abort()
+
+@cli.command()
 @click.option("--watch", "-w", is_flag=True, help="Run continuous sync loop")
 @click.option("--interval", "-i", default=60, help="Sync interval in seconds (watch mode only)")
 @click.pass_context
