@@ -83,9 +83,17 @@ def status(ctx):
         
         # Get repos
         repos = api.get_repos()
-        click.echo(f"\n=== Your Repositories ({len(repos)}) ===")
-        if repos:
-            for repo in repos:
+        # Filter out repos where the repo name (not full_name) starts with "."
+        filtered_repos = []
+        for repo in repos:
+            full_name = repo.get('full_name', '')
+            repo_name = full_name.split('/', 1)[-1] if full_name else repo.get('name', 'N/A')
+            if not repo_name.startswith('.'):
+                filtered_repos.append(repo)
+        
+        click.echo(f"\n=== Your Repositories ({len(filtered_repos)}) ===")
+        if filtered_repos:
+            for repo in filtered_repos:
                 full_name = repo.get('full_name', '')
                 repo_name = full_name.split('/', 1)[-1] if full_name else repo.get('name', 'N/A')
                 click.echo(f"  - {repo_name}")
@@ -94,9 +102,11 @@ def status(ctx):
         
         # Get local repos
         local_repos = storage.list_repos()
-        click.echo(f"\n=== Local Repositories ({len(local_repos)}) ===")
-        if local_repos:
-            for repo in local_repos:
+        # Filter out repos that start with "."
+        filtered_local_repos = [r for r in local_repos if not r.get('name', '').startswith('.')]
+        click.echo(f"\n=== Local Repositories ({len(filtered_local_repos)}) ===")
+        if filtered_local_repos:
+            for repo in filtered_local_repos:
                 sync_mode = repo.get("sync_mode", "manual")
                 last_sync = repo.get("last_sync", "Never")
                 click.echo(f"  - {repo['name']}")
@@ -132,16 +142,24 @@ def repos(ctx):
         # Get assigned repos from API
         assigned_repos = api.get_repos()
         
+        # Filter out repos where the repo name (not full_name) starts with "."
+        filtered_assigned_repos = []
+        for repo in assigned_repos:
+            full_name = repo.get('full_name', '')
+            repo_name = full_name.split('/', 1)[-1] if full_name else repo.get('name', 'N/A')
+            if not repo_name.startswith('.'):
+                filtered_assigned_repos.append(repo)
+        
         # Get local repos
         local_repos = {r["name"]: r for r in storage.list_repos()}
         
-        if not assigned_repos:
+        if not filtered_assigned_repos:
             click.echo("No repositories assigned to this device.")
             return
         
-        click.echo(f"\nYour Repositories ({len(assigned_repos)}):\n")
+        click.echo(f"\nYour Repositories ({len(filtered_assigned_repos)}):\n")
         
-        for repo in assigned_repos:
+        for repo in filtered_assigned_repos:
             full_name = repo.get('full_name', '')
             repo_name = full_name.split('/', 1)[-1] if full_name else repo.get('name', 'N/A')
             local_repo = local_repos.get(repo_name)
