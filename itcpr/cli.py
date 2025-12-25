@@ -81,16 +81,16 @@ def status(ctx):
             click.echo(f"User: {me['user'].get('name', 'N/A')}")
             click.echo(f"Email: {me['user'].get('email', 'N/A')}")
         
-        # Get assigned repos
+        # Get repos
         repos = api.get_repos()
-        click.echo(f"\n=== Assigned Repositories ({len(repos)}) ===")
+        click.echo(f"\n=== Your Repositories ({len(repos)}) ===")
         if repos:
             for repo in repos:
                 full_name = repo.get('full_name', '')
                 repo_name = full_name.split('/', 1)[-1] if full_name else repo.get('name', 'N/A')
                 click.echo(f"  - {repo_name}")
         else:
-            click.echo("  No repositories assigned")
+            click.echo("  No repositories")
         
         # Get local repos
         local_repos = storage.list_repos()
@@ -144,13 +144,12 @@ def repos(ctx):
         for repo in assigned_repos:
             full_name = repo.get('full_name', '')
             repo_name = full_name.split('/', 1)[-1] if full_name else repo.get('name', 'N/A')
-            full_name = repo.get("full_name", repo_name)
             local_repo = local_repos.get(repo_name)
             
             status_icon = "✓" if local_repo else "○"
             status_text = "Cloned" if local_repo else "Not cloned"
             
-            click.echo(f"{status_icon} {full_name} - {status_text}")
+            click.echo(f"{status_icon} {repo_name} - {status_text}")
             if local_repo:
                 click.echo(f"    Path: {local_repo['local_path']}")
                 if local_repo.get("last_sync"):
@@ -221,11 +220,11 @@ def clone(ctx, repo, path):
                 return
         
         # Get GitHub token
-        click.echo(f"Getting GitHub token for {full_name}...")
+        click.echo(f"Getting GitHub token for {repo_name}...")
         token = api.get_github_token(repo_name)
         
         # Clone
-        click.echo(f"Cloning {full_name} to {local_path}...")
+        click.echo(f"Cloning {repo_name} to {local_path}...")
         git = GitOps(local_path)
         git.clone(remote_url, token)
         

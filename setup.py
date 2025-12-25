@@ -9,7 +9,7 @@ long_description = readme_file.read_text() if readme_file.exists() else ""
 
 setup(
     name="itcpr",
-    version="2.1.6",
+    version="2.1.7",
     description="CLI tool for syncing GitHub repositories from ITCPR Cloud",
     long_description=long_description,
     long_description_content_type="text/markdown",
