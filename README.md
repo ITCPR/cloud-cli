@@ -255,7 +255,7 @@ Revokes device token and clears local metadata.
 Shows:
 - Logged-in user information
 - Device ID
-- Assigned repositories
+- Your repositories
 - Local repositories with sync status
 
 ### `itcpr repos`

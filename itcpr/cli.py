@@ -139,7 +139,7 @@ def repos(ctx):
             click.echo("No repositories assigned to this device.")
             return
         
-        click.echo(f"\nAssigned Repositories ({len(assigned_repos)}):\n")
+        click.echo(f"\nYour Repositories ({len(assigned_repos)}):\n")
         
         for repo in assigned_repos:
             full_name = repo.get('full_name', '')
